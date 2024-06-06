@@ -2,7 +2,7 @@
 #define MUSICA_H
 
 typedef struct Musica Musica;
-typedef struct ListaDuplamenteEncadiada;
+typedef struct ListaDuplamenteEncadiada ListaDuplamenteEncadiada;
 
 Musica* criaNo();
 void adicionarMusica();
