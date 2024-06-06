@@ -2,142 +2,270 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Define a struct "Musica"
+// Estrutura para um nó da lista
 typedef struct Musica {
-  char nomeArtista[50];
-  char nomeMusica[50];
-  struct Musica *anterior;
-  struct Musica *proximo;
+    char artista[100];
+    char musica[100];
+    struct Musica* anterior;
+    struct Musica* prox;
 } Musica;
 
-// Função para ler uma linha do arquivo
-char *lerLinha(FILE *arquivo, char *linha) {
-  if (fgets(linha, 256, arquivo) == NULL) {
+// Estrutura para a lista circular duplamente encadeada
+typedef struct {
+    Musica* inicio;
+} ListaDuplamenteEncadiada;
+
+// Função para criar um novo nó
+Musica* criarNo(const char* artista, const char* musica) {
+    Musica* novoNo = (Musica*)malloc(sizeof(Musica));
+    strcpy(novoNo->artista, artista);
+    strcpy(novoNo->musica, musica);
+    novoNo->anterior = novoNo;
+    novoNo->prox = novoNo;
+    return novoNo;
+}
+
+// Função para adicionar um nó à lista
+void adicionarMusica(ListaDuplamenteEncadiada* lista, const char* artista, const char* musica) {
+    Musica* novoNo = criarNo(artista, musica);
+    if (lista->inicio == NULL) {
+        lista->inicio = novoNo;
+    } else {
+        Musica* final = lista->inicio->anterior;
+        final->prox = novoNo;
+        novoNo->anterior = final;
+        novoNo->prox = lista->inicio;
+        lista->inicio->anterior = novoNo;
+    }
+}
+
+// Função para remover um nó da lista
+int removerNo(ListaDuplamenteEncadiada* lista, const char* musica) {
+    if (lista->inicio == NULL) return 0;
+    Musica* corrente = lista->inicio;
+    do {
+        if (strcmp(corrente->musica, musica) == 0) {
+            if (corrente->prox == corrente) {
+                lista->inicio = NULL;
+            } else {
+                corrente->anterior->prox = corrente->prox;
+                corrente->prox->anterior = corrente->anterior;
+                if (lista->inicio == corrente) lista->inicio = corrente->prox;
+            }
+            free(corrente);
+            return 1;
+        }
+        corrente = corrente->prox;
+    } while (corrente != lista->inicio);
+    return 0;
+}
+
+// Função para exibir a playlist na ordem de cadastro
+void mostarMusica(ListaDuplamenteEncadiada* lista) {
+    if (lista->inicio == NULL) {
+        printf("A playlist está vazia.\n");
+        return;
+    }
+    Musica* corrente = lista->inicio;
+    do {
+        printf("%s - %s\n", corrente->artista, corrente->musica);
+        corrente = corrente->prox;
+    } while (corrente != lista->inicio);
+}
+
+// Função para exibir a playlist ordenada pelo nome das músicas
+void mostrarMusicaOrdenada(ListaDuplamenteEncadiada* lista) {
+    if (lista->inicio == NULL) {
+        printf("A playlist está vazia.\n");
+        return;
+    }
+    // Contando o número de nós
+    int contador = 0;
+    Musica* corrente = lista->inicio;
+    do {
+        contador++;
+        corrente = corrente->prox;
+    } while (corrente != lista->inicio);
+
+    // Criando um array para armazenar os nós
+    Musica* nos[contador];
+    corrente = lista->inicio;
+    for (int i = 0; i < contador; i++) {
+        nos[i] = corrente;
+        corrente = corrente->prox;
+    }
+
+    // Ordenando os nós pelo nome da música
+    for (int i = 0; i < contador - 1; i++) {
+        for (int j = i + 1; j < contador; j++) {
+            if (strcmp(nos[i]->musica, nos[j]->musica) > 0) {
+                Musica* temp = nos[i];
+                nos[i] = nos[j];
+                nos[j] = temp;
+            }
+        }
+    }
+
+    // Exibindo os nós ordenados
+    for (int i = 0; i < contador; i++) {
+        printf("%s - %s\n", nos[i]->artista, nos[i]->musica);
+    }
+}
+
+// Função para buscar uma música na playlist
+Musica* buscar(ListaDuplamenteEncadiada* lista, const char* musica) {
+    if (lista->inicio == NULL) return NULL;
+    Musica* corrente = lista->inicio;
+    do {
+        if (strcmp(corrente->musica, musica) == 0) {
+            return corrente;
+        }
+        corrente = corrente->prox;
+    } while (corrente != lista->inicio);
     return NULL;
-  }
-  
-  linha[strlen(linha) - 1] = '\0';
-
-  return linha;
 }
 
-// Função para separar o nome do artista e a música da linha
-void separarDados(char *linha, Musica *musica) {
-  char *pontoVirgula = strchr(linha, ';');
-  if (pontoVirgula == NULL) {
-    return;
-  }
-
-  strncpy(musica->nomeArtista, linha, pontoVirgula - linha);
-  musica->nomeArtista[pontoVirgula - linha] = '\0';
-
-  pontoVirgula++;
-  while (*pontoVirgula == ' ') {
-    pontoVirgula++;
-  }
-
-  strcpy(musica->nomeMusica, pontoVirgula);
+// Função para carregar a playlist do arquivo
+void atualizarMusica(ListaDuplamenteEncadiada* list, const char* nomeArquivo) {
+    FILE* file = fopen(nomeArquivo, "r");
+    if (file == NULL) {
+        printf("Erro ao abrir o arquivo %s.\n", nomeArquivo);
+        return;
+    }
+    char line[200];
+    while (fgets(line, sizeof(line), file)) {
+        char* artist = strtok(line, ";");
+        char* musica = strtok(NULL, "\n");
+        if (artist && musica) {
+            adicionarMusica(list, artist, musica);
+        }
+    }
+    fclose(file);
 }
 
-// Função para adicionar uma música à lista circular
-void adicionarMusica(Musica **lista, Musica *musica) {
-  if (*lista == NULL) {
-    *lista = musica;
-    musica->anterior = musica;
-    musica->proximo = musica;
-    return;
-  }
-
-  Musica *aux = *lista;
-  musica->anterior = aux->anterior;
-  musica->proximo = aux;
-  aux->anterior->proximo = musica;
-  aux->anterior = musica;
+// Função para salvar a playlist no arquivo
+void salvarMusica(ListaDuplamenteEncadiada* lista, const char* nomeArquivo) {
+    FILE* file = fopen(nomeArquivo, "w");
+    if (file == NULL) {
+        printf("Erro ao abrir o arquivo %s.\n", nomeArquivo);
+        return;
+    }
+    if (lista->inicio != NULL) {
+        Musica* corrente = lista->inicio;
+        do {
+            fprintf(file, "%s;%s\n", corrente->artista, corrente->musica);
+            corrente = corrente->prox;
+        } while (corrente != lista->inicio);
+    }
+    fclose(file);
 }
 
-// Função para remover uma música da lista circular
-void removerMusica(Musica **lista, Musica *musica) {
-  if (*lista == NULL) {
-    return;
-  }
+// Função para inserir uma nova música na playlist e no arquivo
+void inserindoMusica(ListaDuplamenteEncadiada* lista, const char* nomeArquivo) {
+    char artista[100];
+    char musica[100];
+    printf("Digite o nome do artista: ");
+    fgets(artista, sizeof(artista), stdin);
+    artista[strcspn(artista, "\n")] = 0;
+    printf("Digite o nome da música: ");
+    fgets(musica, sizeof(musica), stdin);
+    musica[strcspn(musica, "\n")] = 0;
 
-  if (*lista == musica && (*lista)->proximo == musica) {
-    free(musica);
-    *lista = NULL;
-    return;
-  }
-
-  if (*lista == musica) {
-    *lista = musica->proximo;
-    musica->proximo->anterior = musica->anterior;
-    musica->anterior->proximo = musica->proximo;
-  } else {
-    musica->anterior->proximo = musica->proximo;
-    musica->proximo->anterior = musica->anterior;
-  }
-
-  free(musica);
+    adicionarMusica(lista, artista, musica);
+    salvarMusica(lista, nomeArquivo);
+    printf("Música inserida com sucesso.\n");
 }
 
-// Função para atualizar o arquivo de músicas
-void atualizarArquivo(Musica *lista) {
-  FILE *arquivo = fopen("musicas.txt", "w");
-  if (arquivo == NULL) {
-    printf("Erro ao abrir o arquivo para escrita!\n");
-    return;
-  }
+// Função para remover uma música da playlist e do arquivo
+void apagarMusica(ListaDuplamenteEncadiada* lista, const char* nomeArquivo) {
+    char musica[100];
+    printf("Digite o nome da música a ser removida: ");
+    fgets(musica, sizeof(musica), stdin);
+    musica[strcspn(musica, "\n")] = 0;
 
-  Musica *aux = lista;
-  do {
-    fprintf(arquivo, "%s;%s\n", aux->nomeArtista, aux->nomeMusica);
-    aux = aux->proximo;
-  } while (aux != lista);
-
-  fclose(arquivo);
+    if (removerNo(lista, musica)) {
+        salvarMusica(lista, nomeArquivo);
+        printf("Música removida com sucesso.\n");
+    } else {
+        printf("Música não encontrada.\n");
+    }
 }
 
-// Função para imprimir a lista de músicas
-void imprimirLista(Musica *lista) {
-  if (lista == NULL) {
-    printf("A lista está vazia.\n");
-    return;
-  }
+// Função para exibir o menu e processar as opções do usuário
+void menu(ListaDuplamenteEncadiada* lista, const char* nomeArquivo) {
+    int opcao;
+    Musica* corrente = lista->inicio;
 
-  Musica *aux = lista;
-  do {
-    printf("Artista: %s - Música: %s\n", aux->nomeArtista, aux->nomeMusica);
-    aux = aux->proximo;
-  } while (aux != lista);
+    do {
+        printf("\nMenu:\n");
+        printf("1. Exibir playlist pela ordem de cadastro\n");
+        printf("2. Exibir playlist ordenada pelo nome das músicas\n");
+        printf("3. Inserir nova música\n");
+        printf("4. Remover música\n");
+        printf("5. Buscar música\n");
+        printf("6. Avançar para próxima música\n");
+        printf("7. Retornar à música anterior\n");
+        printf("8. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+        getchar();
+
+        switch (opcao) {
+            case 1:
+                mostarMusica(lista);
+                break;
+            case 2:
+                mostrarMusicaOrdenada(lista);
+                break;
+            case 3:
+                inserindoMusica(lista, nomeArquivo);
+                break;
+            case 4:
+                apagarMusica(lista, nomeArquivo);
+                break;
+            case 5: {
+                char musica[100];
+                printf("Digite o nome da música a ser buscada: ");
+                fgets(musica, sizeof(musica), stdin);
+                musica[strcspn(musica, "\n")] = 0;
+
+                Musica* encontrar = buscar(lista, musica);
+                if (encontrar) {
+                    printf("Música encontrada: %s - %s\n", encontrar->artista, encontrar->musica);
+                } else {
+                    printf("Música não encontrada.\n");
+                }
+                break;
+            }
+            case 6:
+                if (corrente) {
+                    corrente = corrente->prox;
+                    printf("Música atual: %s - %s\n", corrente->artista, corrente->musica);
+                } else {
+                    printf("A playlist está vazia.\n");
+                }
+                break;
+            case 7:
+                if (corrente) {
+                    corrente = corrente->anterior;
+                    printf("Música atual: %s - %s\n", corrente->artista, corrente->musica);
+                } else {
+                    printf("A playlist está vazia.\n");
+                }
+                break;
+            case 8:
+                printf("Saindo...\n");
+                break;
+            default:
+                printf("Opção inválida. Tente novamente.\n");
+        }
+    } while (opcao != 8);
 }
 
 int main() {
-  FILE *arquivo = fopen("musicas.txt", "r");
-  if (arquivo == NULL) {
-    printf("Erro ao abrir o arquivo!\n");
-    return 1;
-  }
-  
-  Musica *lista = NULL;
-
-  char linha[256];
-  while (lerLinha(arquivo, linha) != NULL) {
-    Musica *musica = malloc(sizeof(Musica));
-    separarDados(linha, musica);
-
-    adicionarMusica(&lista, musica);
-  }
-
-  fclose(arquivo);
-
-  imprimirLista(lista);
-
-  // Libera a memória alocada dinamicamente
-  Musica *aux = lista;
-  while (aux != NULL) {
-    Musica *temp = aux;
-    aux = aux->proximo;
-    free(temp);
-  }
-
-  return 0;
+    ListaDuplamenteEncadiada musica = { NULL };
+    const char* nomeArquivo = "musicas.txt";
+    atualizarMusica(&musica, nomeArquivo);
+    menu(&musica, nomeArquivo);
+    return 0;
 }
