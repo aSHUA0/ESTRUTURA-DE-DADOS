@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "artistas.h"
+#include "artista.h"
+
 // Estrutura para um nó da lista
 typedef struct Musica {
     char artista[100];
