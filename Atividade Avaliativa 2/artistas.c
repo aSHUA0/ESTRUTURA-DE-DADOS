@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "artistas.h"
 // Estrutura para um nó da lista
 typedef struct Musica {
     char artista[100];
@@ -11,7 +11,7 @@ typedef struct Musica {
 } Musica;
 
 // Estrutura para a lista circular duplamente encadeada
-typedef struct {
+typedef struct ListaDuplamenteEncadiada{
     Musica* inicio;
 } ListaDuplamenteEncadiada;
 
